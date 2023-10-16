@@ -6,48 +6,67 @@ using UnityEngine.SceneManagement;
 
 public class MovingCube : MonoBehaviour
 {
-    public static MovingCube CurrentCube { get; private set; }
-    public static MovingCube LastCube { get; private set; }
-    public MoveDirection MoveDirection { get; set; }
-    public GameObject gameObjectTest;
-
+    
     [SerializeField] private float moveSpeed = 1f;
-    [SerializeField] private float positionLimit;
-    private int direction;
+    public float[] positionLimit;
+    public bool moveDirection; // false = X : true = Z
+    public bool currentDirection;
     private Color color;
-
-    private void OnEnable()
-    {
-        if(LastCube == null)
-        {
-            LastCube = GameObject.Find("Start").GetComponent<MovingCube>();
-        }
-        CurrentCube = this;
-        color = GetRandomColor();
-        GetComponent<Renderer>().material.color = color;
-        transform.localScale = new Vector3(LastCube.transform.localScale.x, transform.localScale.y, LastCube.transform.localScale.z);
-    }
-
+    
     private void Start()
     {
-        
+        color = GetRandomColor();
+        GetComponent<Renderer>().material.color = color;
     }
 
     private void Update()
     {
-        MoveBlock();
-    }
-
-    private void MoveBlock()
-    {
-        if (MoveDirection == MoveDirection.Z)
+        if (moveDirection)
         {
-            if()
-            transform.position += transform.forward * Time.deltaTime * moveSpeed;
+            MoveBlockZ();
         }
         else
         {
+            MoveBlockX();
+        }
+        
+    }
+    private void MoveBlockZ()
+    {
+        if (currentDirection)
+        {
+            transform.position += transform.forward * Time.deltaTime * moveSpeed;
+            if (transform.position.z > positionLimit[1])
+            {
+                currentDirection = !currentDirection;
+            }
+        }
+        else
+        {
+            transform.position -= transform.forward * Time.deltaTime * moveSpeed;
+            if (transform.position.z < positionLimit[0])
+            {
+                currentDirection = !currentDirection;
+            }
+        }
+    }
+    private void MoveBlockX()
+    {
+        if (currentDirection)
+        {
             transform.position += transform.right * Time.deltaTime * moveSpeed;
+            if (transform.position.x > positionLimit[1])
+            {
+                currentDirection = !currentDirection;
+            }
+        }
+        else
+        {
+            transform.position -= transform.right * Time.deltaTime * moveSpeed;
+            if (transform.position.x < positionLimit[0])
+            {
+                currentDirection = !currentDirection;
+            }
         }
     }
 
@@ -56,76 +75,56 @@ public class MovingCube : MonoBehaviour
         return new Color(Random.Range(0, 1f), Random.Range(0, 1f), Random.Range(0, 1f));
     }
 
-    public void Stop()
+    public bool Stop(Transform lastCube)
     {
-        if (CurrentCube.gameObject.name != "Start")
+        moveSpeed = 0f;
+        float hangover = GetHangover(lastCube);
+        if(CheckIfLose(hangover, lastCube))
         {
-            float hangover = GetHangover();
-            moveSpeed = 0f;
-            SplitCube(hangover);
-            CheckIfLose(hangover);
-            LastCube = this;
+            gameObject.AddComponent<Rigidbody>();
+            return true;
+        }
+        SplitCube(hangover, lastCube);
+        return false;
+    }
+    private bool CheckIfLose(float hangover, Transform lastCube)
+    {
+        float max = moveDirection ? lastCube.transform.localScale.z : lastCube.transform.localScale.x;
+        return Mathf.Abs(hangover) >= max;
+    }
+
+    private float GetHangover(Transform lastCube)
+    {
+        if (moveDirection)
+        {
+            return transform.position.z - lastCube.position.z;
+        }
+        else
+        {
+            return transform.position.x - lastCube.position.x;
         }
     }
 
-    private void CheckIfLose(float hangover)
-    {
-        float max = MoveDirection == MoveDirection.Z ? LastCube.transform.localScale.z : LastCube.transform.localScale.x;
-        if (Mathf.Abs(hangover) >= max)
-        {
-            LastCube = null;
-            CurrentCube = null;
-            SceneManager.LoadScene(0);
-        }
-    }
-
-    private void SplitCube(float hangover)
+    private void SplitCube(float hangover, Transform lastCube)
     {
         float direction = hangover > 0 ? 1f : -1f;
 
-        if (MoveDirection == MoveDirection.Z)
+        if (moveDirection)
         {
-            SplitCubeOnZ(hangover, direction);
+            SplitCubeOnZ(hangover, direction, lastCube);
         }
         else
         {
-            SplitCubeOnX(hangover, direction);
+            SplitCubeOnX(hangover, direction, lastCube);
         }
     }
 
-    private float GetHangover()
+    private void SplitCubeOnZ(float hangover, float direction, Transform lastCube)
     {
-        if (MoveDirection == MoveDirection.Z)
-        {
-            return transform.position.z - LastCube.transform.position.z;
-        }
-        else
-        {
-            return transform.position.x - LastCube.transform.position.x;
-        }
-    }
-
-    private void SplitCubeOnX(float hangover, float direction)
-    {
-        float newXSize = LastCube.transform.localScale.x - Mathf.Abs(hangover);
-        float fallingBlockXSize = transform.localScale.x - newXSize;
-
-        float newXPosition = LastCube.transform.position.x + (hangover / 2);
-        transform.localScale = new Vector3(newXSize, transform.localScale.y, transform.localScale.z);
-        transform.position = new Vector3(newXPosition, transform.position.y, transform.position.z);
-
-        float cubeEdge = transform.position.x + (newXSize / 2f * direction);
-        float fallingBlockXPosition = cubeEdge + fallingBlockXSize / 2f * direction;
-
-        SpawnDropCube(fallingBlockXPosition, fallingBlockXSize);
-    }
-
-    private void SplitCubeOnZ(float hangover, float direction)
-    {
-        float newZSize = LastCube.transform.localScale.z - Mathf.Abs(hangover);
+        float newZSize = lastCube.localScale.z - Mathf.Abs(hangover);
         float fallingBlockZSize = transform.localScale.z - newZSize;
 
-        float newZPosition = LastCube.transform.position.z + (hangover / 2);
+        float newZPosition = lastCube.position.z + (hangover / 2);
         transform.localScale = new Vector3(transform.localScale.x, transform.localScale.y, newZSize);
         transform.position = new Vector3(transform.position.x, transform.position.y, newZPosition);
 
@@ -135,10 +134,25 @@ public class MovingCube : MonoBehaviour
         SpawnDropCube(fallingBlockZPosition, fallingBlockZSize);
     }
 
+    private void SplitCubeOnX(float hangover, float direction, Transform lastCube)
+    {
+        float newXSize = lastCube.localScale.x - Mathf.Abs(hangover);
+        float fallingBlockXSize = transform.localScale.x - newXSize;
+
+        float newXPosition = lastCube.position.x + (hangover / 2);
+        transform.localScale = new Vector3(newXSize, transform.localScale.y, transform.localScale.z);
+        transform.position = new Vector3(newXPosition, transform.position.y, transform.position.z);
+
+        float cubeEdge = transform.position.x + (newXSize / 2f * direction);
+        float fallingBlockXPosition = cubeEdge + fallingBlockXSize / 2f * direction;
+
+        SpawnDropCube(fallingBlockXPosition, fallingBlockXSize);
+    }
+
     private void SpawnDropCube(float fallingBlockPosition, float fallingBlockSize)
     {
         var cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        if (MoveDirection == MoveDirection.Z)
+        if (moveDirection)
         {
             cube.transform.localScale = new Vector3(transform.localScale.x, transform.localScale.y, fallingBlockSize);
             cube.transform.position = new Vector3(transform.position.x, transform.position.y, fallingBlockPosition);
@@ -148,10 +162,9 @@ public class MovingCube : MonoBehaviour
             cube.transform.localScale = new Vector3(fallingBlockSize, transform.localScale.y, transform.localScale.z);
             cube.transform.position = new Vector3(fallingBlockPosition, transform.position.y, transform.position.z);
         }
-        
+
         cube.AddComponent<Rigidbody>();
         cube.GetComponent<Renderer>().material.color = color;
-        //Destroy(cube.gameObject, 1f);
     }
 }
 

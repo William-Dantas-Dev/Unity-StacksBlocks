@@ -120,3 +120,4 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   gameObjectTest: {fileID: 5557968597365159835, guid: 06f42188374c05547a8b1bff9d3ecfef, type: 3}
   moveSpeed: 1
+  positionLimit: 2
