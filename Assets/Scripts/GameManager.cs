@@ -20,13 +20,18 @@ public class GameManager : MonoBehaviour
     private bool direction; // false = X : true = Z
     private CameraController cameraController;
 
+    [Header("Score")]
     public TextMeshProUGUI scoreText;
+    public GameObject recordScoreObject;
     private int score;
     private bool endGame;
+    private float recordScore;
+   
 
     private void Start()
     {
         cameraController = FindObjectOfType<CameraController>();
+        recordScore = PlayerPrefs.GetFloat("RecordScore");
     }
 
     
@@ -42,14 +47,24 @@ public class GameManager : MonoBehaviour
                     {
                         restartGameText.gameObject.SetActive(true);
                         endGame = true;
+                        PlayerPrefs.SetFloat("RecordScore", recordScore);
                         return;
                     }
                     score++;
                     scoreText.text = score.ToString();
+                    if(recordScore < lastCube.transform.position.y)
+                    {
+                        recordScore = lastCube.transform.position.y;
+                    }
                     lastCube = currentCube;
                 }
                 else
                 {
+                    if (recordScore > 0)
+                    {
+                        recordScoreObject.SetActive(true);
+                        recordScoreObject.transform.position = new Vector3(recordScoreObject.transform.position.x, recordScore, recordScoreObject.transform.position.z);
+                    }
                     startGameText.gameObject.SetActive(false);
                 }
                 Vector3 pointToSpawn = GetNextPointToSpawn();
